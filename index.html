@@ -833,7 +833,6 @@ async function simpanPengaturan() {
   appSettings.max_violation = parseInt(document.getElementById('set-max-vio').value) || 3;
   const newPass = document.getElementById('set-pass').value;
   if(newPass) appSettings.admin_password = newPass;
-
   try {
     const existing = await sbSelect('settings','?limit=1');
     const payload = { sekolah:appSettings.sekolah, subtitle:appSettings.subtitle, logo_url:appSettings.logo_url, kkm:appSettings.kkm, max_violation:appSettings.max_violation };
@@ -843,7 +842,7 @@ async function simpanPengaturan() {
     applyKop();
     toast('✅ Pengaturan & Kop disimpan!','','success');
   } catch(e) { toast('❌ Gagal menyimpan','Cek koneksi Supabase','danger'); }
-  showLoading(false);
+  finally { showLoading(false); }
 }
 
 // ============================================================
@@ -877,9 +876,11 @@ function showPanel(name, btn) {
   if(name==='ujian') loadUjian();
 }
 
-function openModal(id) {
+async function openModal(id) {
   document.getElementById(id).classList.add('show');
-  if(['modal-tambah-soal','modal-buat-ujian','modal-import-soal'].includes(id)) populateMapelSelects();
+  if(['modal-tambah-soal','modal-buat-ujian','modal-import-soal'].includes(id)) {
+    await populateMapelSelects(); // await tapi tidak pakai showLoading global
+  }
   if(id==='modal-tambah-soal') { initOptionList(); updateSoalForm(); }
   if(id==='modal-buat-ujian') generateToken();
 }
@@ -989,8 +990,8 @@ async function loadSiswa() {
     const tbody = document.getElementById('siswa-table');
     if(!data.length) { tbody.innerHTML='<tr><td colspan="4" style="text-align:center;color:var(--text-dim);padding:24px">Belum ada data siswa</td></tr>'; return; }
     tbody.innerHTML = data.map((s,i)=>`<tr><td>${i+1}</td><td><strong>${s.nama}</strong></td><td>${s.kelas}</td><td><button class="btn btn-sm btn-danger" onclick="hapusSiswa('${s.id}')">🗑 Hapus</button></td></tr>`).join('');
-  } catch(e) { toast('❌ Gagal memuat siswa','','danger'); }
-  showLoading(false);
+  } catch(e) { toast('❌ Gagal memuat siswa','Cek koneksi','danger'); }
+  finally { showLoading(false); }
 }
 
 async function tambahSiswa() {
@@ -1004,7 +1005,7 @@ async function tambahSiswa() {
     document.getElementById('new-siswa-nama').value='';
     toast('✅ Siswa berhasil ditambahkan','','success');
   } catch(e) { toast('❌ Gagal menambah siswa','','danger'); }
-  showLoading(false);
+  finally { showLoading(false); }
 }
 
 async function hapusSiswa(id) {
@@ -1024,7 +1025,7 @@ async function loadMapel() {
     if(!mapel.length) { tbody.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:24px">Belum ada mapel</td></tr>'; return; }
     tbody.innerHTML = mapel.map((m,i)=>`<tr><td>${i+1}</td><td><strong>${m.nama}</strong></td><td>${m.kelas}</td><td>${soal.filter(s=>s.mapel_id===m.id).length} soal</td><td><button class="btn btn-sm btn-danger" onclick="hapusMapel('${m.id}')">🗑</button></td></tr>`).join('');
   } catch(e) { toast('❌ Gagal memuat mapel','','danger'); }
-  showLoading(false);
+  finally { showLoading(false); }
 }
 
 async function tambahMapel() {
@@ -1038,7 +1039,7 @@ async function tambahMapel() {
     document.getElementById('new-mapel-nama').value='';
     toast('✅ Mapel ditambahkan','','success');
   } catch(e) { toast('❌ Gagal menambah mapel','','danger'); }
-  showLoading(false);
+  finally { showLoading(false); }
 }
 
 async function hapusMapel(id) {
@@ -1050,9 +1051,20 @@ async function hapusMapel(id) {
 async function populateMapelSelects() {
   try {
     const mapel = await sbSelect('mapel','?order=nama.asc');
-    const opts = mapel.map(m=>`<option value="${m.id}">${m.nama}</option>`).join('') || '<option value="">-- Belum ada mapel --</option>';
-    ['soal-mapel','import-mapel','ujian-mapel'].forEach(id => { const el=document.getElementById(id); if(el) el.innerHTML=opts; });
-  } catch(e) {}
+    const opts = (mapel && mapel.length)
+      ? mapel.map(m=>`<option value="${m.id}">${m.nama}</option>`).join('')
+      : '<option value="">-- Belum ada mapel, tambah dulu --</option>';
+    ['soal-mapel','import-mapel','ujian-mapel'].forEach(id => {
+      const el = document.getElementById(id);
+      if(el) el.innerHTML = opts;
+    });
+  } catch(e) {
+    console.warn('populateMapelSelects error:', e);
+    ['soal-mapel','import-mapel','ujian-mapel'].forEach(id => {
+      const el = document.getElementById(id);
+      if(el) el.innerHTML = '<option value="">-- Gagal memuat mapel --</option>';
+    });
+  }
 }
 
 async function populateMapelFilter() {
@@ -1073,7 +1085,7 @@ async function loadSoal(filterMapel='') {
     const [soalList, mapel] = await Promise.all([sbSelect('soal',query), sbSelect('mapel','?order=nama.asc')]);
     renderSoalList(soalList, mapel);
   } catch(e) { toast('❌ Gagal memuat soal','','danger'); }
-  showLoading(false);
+  finally { showLoading(false); }
 }
 
 function renderSoal(filterMapel='') { loadSoal(filterMapel); }
@@ -1184,7 +1196,7 @@ async function simpanSoal() {
     document.getElementById('soal-text').value=''; document.getElementById('gambar-preview').style.display='none';
     initOptionList(); toast('✅ Soal disimpan!','','success');
   } catch(e) { toast('❌ Gagal menyimpan soal','','danger'); }
-  showLoading(false);
+  finally { showLoading(false); }
 }
 
 // WORD IMPORT
@@ -1252,8 +1264,8 @@ async function loadUjian() {
         <button class="btn btn-sm btn-danger" onclick="hapusUjian('${u.id}')">🗑</button>
       </td>
     </tr>`).join('');
-  } catch(e) {}
-  showLoading(false);
+  } catch(e) { toast('❌ Gagal memuat ujian','','danger'); }
+  finally { showLoading(false); }
 }
 
 function generateToken() {
@@ -1271,14 +1283,15 @@ async function buatUjian() {
   const acak_jawaban=document.getElementById('ujian-acak-jawaban').checked;
   const mapelEl=document.getElementById('ujian-mapel');
   const mapel_nama=mapelEl.options[mapelEl.selectedIndex]?.text||'?';
-  if(!mapel_id||!token||!durasi) { toast('⚠️ Lengkapi semua field','','warn'); return; }
+  if(!mapel_id) { toast('⚠️ Pilih mata pelajaran dulu!','Tambahkan mapel di menu Mata Pelajaran','warn'); return; }
+  if(!token||!durasi) { toast('⚠️ Lengkapi semua field','','warn'); return; }
   showLoading(true);
   try {
     await sbInsert('ujian',{id:'U'+Date.now(),mapel_id,mapel_nama,durasi,token,jumlah_soal,acak_soal,acak_jawaban,status:'aktif'});
     await loadUjian(); closeModal('modal-buat-ujian');
     toast(`✅ Ujian aktif! Token: ${token}`,'Bagikan token ini ke siswa','success');
-  } catch(e) { toast('❌ Gagal membuat ujian. Token mungkin sudah digunakan.','','danger'); }
-  showLoading(false);
+  } catch(e) { toast('❌ Gagal membuat ujian','Token mungkin sudah digunakan','danger'); }
+  finally { showLoading(false); }
 }
 
 async function toggleUjian(id,status) {
@@ -1335,7 +1348,7 @@ async function loadHasil() {
     const query=filterUjian?`?ujian_id=eq.${filterUjian}&order=created_at.desc`:'?order=created_at.desc';
     const data=await sbSelect('hasil',query);
     const tbody=document.getElementById('hasil-table');
-    if(!data.length) { tbody.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--text-dim);padding:24px">Belum ada hasil ujian</td></tr>'; showLoading(false); return; }
+    if(!data.length) { tbody.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--text-dim);padding:24px">Belum ada hasil ujian</td></tr>'; return; }
     tbody.innerHTML=data.map((h,i)=>`<tr>
       <td>${i+1}</td>
       <td><strong>${h.nama}</strong></td>
@@ -1348,7 +1361,7 @@ async function loadHasil() {
       <td><button class="btn btn-sm btn-primary" onclick="lihatDetail('${h.id}')">🔍 Detail</button></td>
     </tr>`).join('');
   } catch(e) { toast('❌ Gagal memuat hasil','','danger'); }
-  showLoading(false);
+  finally { showLoading(false); }
 }
 
 async function populateUjianFilter() {
@@ -1383,8 +1396,8 @@ async function lihatDetail(hasilId) {
         return `<div class="review-item ${cls}"><div class="review-q">${icon} <strong>Soal ${d.nomor}:</strong> ${d.text.substring(0,150)}</div><div class="review-ans">Jawaban Siswa: <span>${userAnsText}</span></div>${d.tipe!=='essay'?`<div class="review-ans" style="color:#059669">Kunci: <span>${getCorrectAnsText(d)}</span></div>`:''}</div>`;
       }).join('')}`;
     openModal('modal-detail-hasil');
-  } catch(e) {}
-  showLoading(false);
+  } catch(e) { toast('❌ Gagal memuat detail','','danger'); }
+  finally { showLoading(false); }
 }
 
 // ============================================================
