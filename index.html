@@ -379,7 +379,7 @@ tr:hover td { background:#f8fafc; }
 <!-- ===== ADMIN ===== -->
 <div id="admin-screen" class="screen">
   <aside class="sidebar">
-    <div class="sidebar-logo"><h2>⚡ UPDATE FASTER</h2><p>Dashboard Administrator</p></div>
+    <div class="sidebar-logo"><h2>⚡ Update Faster</h2><p>Dashboard Administrator</p></div>
     <nav class="sidebar-nav">
       <div class="nav-label">UTAMA</div>
       <button class="nav-item active" onclick="showPanel('dashboard',this)"><span class="icon">📊</span> Dashboard</button>
@@ -1014,6 +1014,9 @@ async function simpanPengaturan() {
 function showScreen(id) {
   document.querySelectorAll('.screen,.flex-screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
+  // Simpan state screen (kecuali exam & result — ditangani terpisah)
+  if(id === 'login-screen') sessionStorage.removeItem('adminSession');
+  if(id === 'admin-screen') sessionStorage.setItem('currentScreen', 'admin-screen');
 }
 
 function switchTab(tab) {
@@ -1027,6 +1030,12 @@ function showPanel(name, btn) {
   document.getElementById('panel-'+name).classList.add('active');
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   if(btn) btn.classList.add('active');
+  else {
+    // Aktifkan nav item yang sesuai saat restore
+    document.querySelectorAll('.nav-item').forEach(n => {
+      if(n.getAttribute('onclick') && n.getAttribute('onclick').includes(`'${name}'`)) n.classList.add('active');
+    });
+  }
   const titles = { dashboard:'📊 DASHBOARD', monitoring:'👁️ LIVE MONITORING', siswa:'👨‍🎓 DATA SISWA', mapel:'📚 MATA PELAJARAN', soal:'📝 BANK SOAL', ujian:'🎯 KELOLA UJIAN', hasil:'📈 HASIL UJIAN', pelanggaran:'⚠️ LOG PELANGGARAN', pengaturan:'⚙️ PENGATURAN & KOP' };
   document.getElementById('panel-title').textContent = titles[name]||name;
   if(name==='siswa') loadSiswa();
@@ -1037,6 +1046,8 @@ function showPanel(name, btn) {
   if(name==='pelanggaran') loadPelanggaran();
   if(name==='dashboard') loadDashboard();
   if(name==='ujian') loadUjian();
+  // Simpan panel aktif
+  sessionStorage.setItem('activePanel', name);
 }
 
 async function openModal(id) {
@@ -1054,6 +1065,9 @@ async function loginAdmin() {
   const u = document.getElementById('admin-user').value;
   const p = document.getElementById('admin-pass').value;
   if(u==='admin' && (p==='admin123' || p===appSettings.admin_password)) {
+    // Simpan sesi admin
+    sessionStorage.setItem('adminSession', JSON.stringify({ loggedIn: true, time: Date.now() }));
+    sessionStorage.setItem('activePanel', 'dashboard');
     showScreen('admin-screen');
     await loadDashboard();
     startAdminRealtime();
@@ -1062,7 +1076,12 @@ async function loginAdmin() {
 }
 
 function logoutAdmin() {
-  if(confirm('Yakin ingin keluar?')) showScreen('login-screen');
+  if(confirm('Yakin ingin keluar?')) {
+    sessionStorage.removeItem('adminSession');
+    sessionStorage.removeItem('activePanel');
+    sessionStorage.removeItem('currentScreen');
+    showScreen('login-screen');
+  }
 }
 
 // ============================================================
@@ -1838,14 +1857,13 @@ async function loginSiswa() {
     currentSiswa={nama,kelas,id:'S'+Date.now()};
     currentUjian=ujian;
 
-    if(existingSesi.length>0 && confirm('Sesi ujian Anda sebelumnya ditemukan. Lanjutkan dari posisi terakhir?')) {
+    if(existingSesi.length>0) {
       const sesi=existingSesi[0];
       currentSesiId=sesi.id;
       answers=sesi.answers||{};
       flagged=JSON.parse(sesi.flagged||'[]');
       timeLeft=sesi.time_left||ujian.durasi*60;
       violationCount=sesi.violations||0;
-      // load questions
       await loadExamQuestions(ujian, false);
       currentQ=sesi.current_question||0;
     } else {
@@ -1853,7 +1871,6 @@ async function loginSiswa() {
       answers={}; flagged=[]; currentQ=0; violationCount=0;
       timeLeft=ujian.durasi*60;
       await loadExamQuestions(ujian, true);
-      // Save new session
       await sbInsert('sesi_ujian',{
         id:currentSesiId, siswa_id:currentSiswa.id, nama, kelas,
         ujian_id:ujian.id, answers:{}, current_question:0,
@@ -1861,6 +1878,13 @@ async function loginSiswa() {
         violations:0, soal_dijawab:0, total_soal:examQuestions.length
       });
     }
+
+    // Simpan sesi siswa ke sessionStorage untuk recovery saat refresh
+    sessionStorage.setItem('siswaSession', JSON.stringify({
+      nama, kelas, token,
+      sesiId: currentSesiId,
+      ujianId: ujian.id
+    }));
 
     examSubmitted=false;
     document.getElementById('exam-subject-name').textContent=ujian.mapel_nama;
@@ -2055,6 +2079,8 @@ async function submitExam(autoTime=false,autoViolation=false) {
   document.removeEventListener('visibilitychange',handleVisibilityChange);
   window.removeEventListener('blur',handleWindowBlur);
   if(document.fullscreenElement) document.exitFullscreen();
+  // Hapus sesi siswa dari sessionStorage karena ujian sudah selesai
+  sessionStorage.removeItem('siswaSession');
   showLoading(true);
 
   let benar=0, total=0; const detailJawaban=[];
@@ -2143,17 +2169,72 @@ function toast(title,msg,type='info') {
   c.appendChild(t); setTimeout(()=>t.remove(),4000);
 }
 
-function showScreen(id) {
-  document.querySelectorAll('.screen,.flex-screen').forEach(s=>s.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
-}
 
 // ============================================================
-//  INIT
+//  INIT — Restore session saat refresh
 // ============================================================
 (async()=>{
   showLoading(true);
   await loadSettings();
+
+  // --- RESTORE SESI ADMIN ---
+  const adminSession = sessionStorage.getItem('adminSession');
+  if(adminSession) {
+    try {
+      const s = JSON.parse(adminSession);
+      if(s.loggedIn) {
+        showScreen('admin-screen');
+        const panel = sessionStorage.getItem('activePanel') || 'dashboard';
+        showPanel(panel, null);
+        startAdminRealtime();
+        showLoading(false);
+        return; // Selesai, tidak perlu cek yang lain
+      }
+    } catch(e) { sessionStorage.removeItem('adminSession'); }
+  }
+
+  // --- RESTORE SESI SISWA ---
+  const siswaSession = sessionStorage.getItem('siswaSession');
+  if(siswaSession) {
+    try {
+      const s = JSON.parse(siswaSession);
+      // Cek apakah sesi masih aktif di Supabase
+      const sesiData = await sbSelect('sesi_ujian',`?id=eq.${s.sesiId}&status=eq.aktif`);
+      if(sesiData.length > 0) {
+        const sesi = sesiData[0];
+        const ujianData = await sbSelect('ujian',`?id=eq.${sesi.ujian_id}`);
+        if(ujianData.length > 0) {
+          const ujian = ujianData[0];
+          currentSiswa = { nama: sesi.nama, kelas: sesi.kelas, id: sesi.siswa_id };
+          currentUjian = ujian;
+          currentSesiId = sesi.id;
+          answers = sesi.answers || {};
+          flagged = JSON.parse(sesi.flagged || '[]');
+          timeLeft = sesi.time_left || ujian.durasi * 60;
+          violationCount = sesi.violations || 0;
+          await loadExamQuestions(ujian, false);
+          currentQ = sesi.current_question || 0;
+          examSubmitted = false;
+
+          document.getElementById('exam-subject-name').textContent = ujian.mapel_nama;
+          document.getElementById('exam-user-name').textContent = sesi.nama;
+          document.getElementById('exam-user-class').textContent = sesi.kelas;
+
+          showScreen('exam-screen');
+          renderQuestion(); renderQNav(); startTimer(); setupAntiCheat();
+          toast('🔄 Melanjutkan ujian dari posisi terakhir...','','info');
+          showLoading(false);
+          return;
+        }
+      }
+      // Sesi tidak aktif lagi, hapus
+      sessionStorage.removeItem('siswaSession');
+    } catch(e) {
+      console.warn('Restore siswa session failed:', e);
+      sessionStorage.removeItem('siswaSession');
+    }
+  }
+
   showLoading(false);
 })();
 </script>
