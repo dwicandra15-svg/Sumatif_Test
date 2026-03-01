@@ -346,16 +346,9 @@ tr:hover td { background:#f8fafc; }
 <div id="login-screen" class="flex-screen active">
   <div class="login-box">
     <div class="login-logo">
-      <div id="kop-preview-login" class="kop-preview-login" style="display:none">
-        <div class="kop-logo-preview" id="kop-logo-login">🏫</div>
-        <div class="kop-text-preview">
-          <h3 id="kop-title-login">Nama Sekolah</h3>
-          <p id="kop-subtitle-login">Ujian Online</p>
-        </div>
-      </div>
-      <div class="badge"><span>⚡ EXAM SYSTEM</span></div>
-      <h1>UJIAN ONLINE</h1>
-      <p>Sistem Ujian Digital Terintegrasi</p>
+      <div class="badge"><span id="login-badge-text" style="font-size:15px;letter-spacing:2px">⚡ EXAM SYSTEM</span></div>
+      <h1 id="login-title">UJIAN ONLINE</h1>
+      <p id="login-subtitle">Sistem Ujian Digital Terintegrasi</p>
     </div>
     <div class="tab-switch">
       <button class="tab-btn active" onclick="switchTab('siswa')">👨‍🎓 Siswa</button>
@@ -499,6 +492,53 @@ tr:hover td { background:#f8fafc; }
 
       <!-- PENGATURAN & KOP -->
       <div class="admin-panel" id="panel-pengaturan">
+        <!-- LOGIN APPEARANCE -->
+        <div class="card">
+          <div class="card-header"><h3>🖥️ TAMPILAN HALAMAN LOGIN</h3></div>
+          <div class="card-body">
+            <!-- Preview -->
+            <div style="background:linear-gradient(135deg,#0f2540,#1a3a5c);border-radius:12px;padding:28px;text-align:center;margin-bottom:20px">
+              <div style="display:inline-flex;align-items:center;gap:10px;background:rgba(14,165,233,0.15);border:1px solid rgba(14,165,233,0.3);border-radius:50px;padding:8px 20px;margin-bottom:14px">
+                <span id="prev-login-logo" style="font-size:20px">⚡</span>
+                <span id="prev-badge-text" style="font-family:Rajdhani,sans-serif;font-size:16px;letter-spacing:2px;color:#0ea5e9;font-weight:700">EXAM SYSTEM</span>
+              </div>
+              <div id="prev-login-title" style="font-family:Rajdhani,sans-serif;font-size:32px;font-weight:700;color:#fff;letter-spacing:2px">UJIAN ONLINE</div>
+              <div id="prev-login-subtitle" style="font-size:13px;color:rgba(255,255,255,0.5);margin-top:4px">Sistem Ujian Digital Terintegrasi</div>
+            </div>
+            <div class="form-row">
+              <div class="field">
+                <label>TEKS BADGE (atas judul)</label>
+                <input type="text" id="set-badge-text" placeholder="EXAM SYSTEM" oninput="updateLoginPreview()">
+              </div>
+              <div class="field">
+                <label>IKON / EMOJI BADGE</label>
+                <div style="display:flex;gap:8px;align-items:center">
+                  <input type="text" id="set-login-logo" placeholder="⚡" maxlength="4" oninput="updateLoginPreview()" style="flex:1">
+                  <span style="font-size:12px;color:var(--text-dim)">atau</span>
+                  <label style="flex:1;display:flex;align-items:center;gap:6px;padding:9px 12px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:12px;font-weight:700;color:var(--accent);white-space:nowrap">
+                    🖼️ Upload Logo
+                    <input type="file" accept="image/*" style="display:none" onchange="uploadLoginLogo(this)">
+                  </label>
+                </div>
+                <div id="login-logo-preview-wrap" style="display:none;margin-top:8px;display:flex;align-items:center;gap:8px">
+                  <img id="login-logo-img-preview" style="width:40px;height:40px;object-fit:contain;border-radius:6px;border:1px solid var(--border)">
+                  <button class="btn btn-sm btn-danger" onclick="hapusLoginLogo()">✕ Hapus Logo</button>
+                </div>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="field">
+                <label>JUDUL UTAMA (UJIAN ONLINE)</label>
+                <input type="text" id="set-login-title" placeholder="UJIAN ONLINE" oninput="updateLoginPreview()">
+              </div>
+              <div class="field">
+                <label>SUBTITLE</label>
+                <input type="text" id="set-login-subtitle" placeholder="Sistem Ujian Digital Terintegrasi" oninput="updateLoginPreview()">
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- KOP PREVIEW -->
         <div class="card">
           <div class="card-header"><h3>🏫 PREVIEW KOP UJIAN</h3></div>
@@ -513,6 +553,7 @@ tr:hover td { background:#f8fafc; }
             </div>
           </div>
         </div>
+
         <div class="card">
           <div class="card-header"><h3>⚙️ PENGATURAN SISTEM & KOP</h3></div>
           <div class="card-body">
@@ -607,7 +648,6 @@ tr:hover td { background:#f8fafc; }
     <div style="text-align:center">
       <button class="btn btn-outline" onclick="showScreen('login-screen')" style="padding:12px 32px">🔙 Kembali ke Halaman Utama</button>
     </div>
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:var(--text-dim)">Created & Developed by D.D Candra</div>
   </div>
 </div>
 
@@ -815,14 +855,7 @@ async function loadSettings() {
 
 function applyKop() {
   const { sekolah, subtitle, logo_url } = appSettings;
-  // Login preview
-  if(sekolah !== 'Nama Sekolah') {
-    document.getElementById('kop-preview-login').style.display = 'flex';
-    document.getElementById('kop-title-login').textContent = sekolah;
-    document.getElementById('kop-subtitle-login').textContent = subtitle;
-    if(logo_url) document.getElementById('kop-logo-login').innerHTML = `<img src="${logo_url}" style="width:40px;height:40px;object-fit:contain">`;
-  }
-  // Dashboard preview
+  // Kop ujian
   document.getElementById('kop-title-display').textContent = sekolah;
   document.getElementById('kop-subtitle-display').textContent = subtitle;
   if(logo_url) document.getElementById('kop-logo-display').innerHTML = `<img src="${logo_url}" style="width:70px;height:70px;object-fit:contain">`;
@@ -830,11 +863,44 @@ function applyKop() {
   document.getElementById('exam-kop-title').textContent = sekolah;
   document.getElementById('exam-kop-subtitle').textContent = subtitle;
   if(logo_url) document.getElementById('exam-kop-logo').innerHTML = `<img src="${logo_url}" style="width:52px;height:52px;object-fit:contain">`;
-  // Settings fields
+  // Settings fields kop
   document.getElementById('set-sekolah').value = sekolah;
   document.getElementById('set-subtitle').value = subtitle;
   document.getElementById('set-kkm').value = appSettings.kkm;
   document.getElementById('set-max-vio').value = appSettings.max_violation;
+
+  // Login tampilan
+  const badgeText = appSettings.login_badge || 'EXAM SYSTEM';
+  const loginLogo = appSettings.login_logo || '⚡';
+  const loginLogoImg = appSettings.login_logo_img || null;
+  const loginTitle = appSettings.login_title || 'UJIAN ONLINE';
+  const loginSubtitle = appSettings.login_subtitle || 'Sistem Ujian Digital Terintegrasi';
+
+  appSettings.login_logo_img = loginLogoImg;
+  document.getElementById('login-title').textContent = loginTitle;
+  document.getElementById('login-subtitle').textContent = loginSubtitle;
+  const badgeEl = document.getElementById('login-badge-text');
+  if(badgeEl) {
+    if(loginLogoImg) badgeEl.innerHTML = `<img src="${loginLogoImg}" style="width:22px;height:22px;object-fit:contain;vertical-align:middle;border-radius:3px;margin-right:4px"> ${badgeText}`;
+    else badgeEl.textContent = loginLogo + ' ' + badgeText;
+  }
+
+  // Settings fields login
+  document.getElementById('set-badge-text').value = badgeText;
+  document.getElementById('set-login-logo').value = loginLogo;
+  document.getElementById('set-login-title').value = loginTitle;
+  document.getElementById('set-login-subtitle').value = loginSubtitle;
+
+  // Show logo preview jika ada
+  if(loginLogoImg) {
+    const wrap = document.getElementById('login-logo-preview-wrap');
+    const img = document.getElementById('login-logo-img-preview');
+    if(wrap) wrap.style.display='flex';
+    if(img) img.src = loginLogoImg;
+  }
+
+  // Preview
+  updateLoginPreview();
 }
 
 function updateKopPreview() {
@@ -842,6 +908,61 @@ function updateKopPreview() {
   const subtitle = document.getElementById('set-subtitle').value || 'Ujian Online';
   document.getElementById('kop-title-display').textContent = sekolah;
   document.getElementById('kop-subtitle-display').textContent = subtitle;
+}
+
+function updateLoginPreview() {
+  const badge = document.getElementById('set-badge-text')?.value || 'EXAM SYSTEM';
+  const logoText = document.getElementById('set-login-logo')?.value || '⚡';
+  const title = document.getElementById('set-login-title')?.value || 'UJIAN ONLINE';
+  const sub = document.getElementById('set-login-subtitle')?.value || 'Sistem Ujian Digital Terintegrasi';
+  const hasLogoImg = appSettings.login_logo_img;
+
+  // Update preview badge
+  const prevBadge = document.getElementById('prev-badge-text');
+  const prevLogo = document.getElementById('prev-login-logo');
+  const prevTitle = document.getElementById('prev-login-title');
+  const prevSub = document.getElementById('prev-login-subtitle');
+  if(prevBadge) prevBadge.textContent = badge;
+  if(prevLogo) {
+    if(hasLogoImg) prevLogo.innerHTML = `<img src="${hasLogoImg}" style="width:28px;height:28px;object-fit:contain;vertical-align:middle;border-radius:4px">`;
+    else prevLogo.textContent = logoText;
+  }
+  if(prevTitle) prevTitle.textContent = title;
+  if(prevSub) prevSub.textContent = sub;
+
+  // Apply live ke login screen
+  const badgeEl = document.getElementById('login-badge-text');
+  if(badgeEl) {
+    if(hasLogoImg) badgeEl.innerHTML = `<img src="${hasLogoImg}" style="width:22px;height:22px;object-fit:contain;vertical-align:middle;border-radius:3px;margin-right:4px"> ${badge}`;
+    else badgeEl.textContent = logoText + ' ' + badge;
+  }
+  document.getElementById('login-title').textContent = title;
+  document.getElementById('login-subtitle').textContent = sub;
+}
+
+function uploadLoginLogo(input) {
+  const file = input.files[0]; if(!file) return;
+  if(file.size > 2*1024*1024) { toast('⚠️ Ukuran file maks 2MB','','warn'); return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    appSettings.login_logo_img = e.target.result;
+    // Show preview
+    const wrap = document.getElementById('login-logo-preview-wrap');
+    const img = document.getElementById('login-logo-img-preview');
+    if(wrap) wrap.style.display='flex';
+    if(img) img.src = e.target.result;
+    updateLoginPreview();
+    toast('✅ Logo login berhasil diupload','Klik Simpan untuk menyimpan','success');
+  };
+  reader.readAsDataURL(file);
+}
+
+function hapusLoginLogo() {
+  appSettings.login_logo_img = null;
+  const wrap = document.getElementById('login-logo-preview-wrap');
+  if(wrap) wrap.style.display='none';
+  updateLoginPreview();
+  toast('🗑️ Logo login dihapus','','warn');
 }
 
 async function uploadLogo(input) {
@@ -862,16 +983,27 @@ async function simpanPengaturan() {
   appSettings.subtitle = document.getElementById('set-subtitle').value;
   appSettings.kkm = parseInt(document.getElementById('set-kkm').value) || 70;
   appSettings.max_violation = parseInt(document.getElementById('set-max-vio').value) || 3;
+  appSettings.login_badge = document.getElementById('set-badge-text').value || 'EXAM SYSTEM';
+  appSettings.login_logo = document.getElementById('set-login-logo').value || '⚡';
+  appSettings.login_title = document.getElementById('set-login-title').value || 'UJIAN ONLINE';
+  appSettings.login_subtitle = document.getElementById('set-login-subtitle').value || 'Sistem Ujian Digital Terintegrasi';
   const newPass = document.getElementById('set-pass').value;
   if(newPass) appSettings.admin_password = newPass;
   try {
     const existing = await sbSelect('settings','?limit=1');
-    const payload = { sekolah:appSettings.sekolah, subtitle:appSettings.subtitle, logo_url:appSettings.logo_url, kkm:appSettings.kkm, max_violation:appSettings.max_violation };
+    const payload = {
+      sekolah: appSettings.sekolah, subtitle: appSettings.subtitle,
+      logo_url: appSettings.logo_url, kkm: appSettings.kkm,
+      max_violation: appSettings.max_violation,
+      login_badge: appSettings.login_badge, login_logo: appSettings.login_logo,
+      login_title: appSettings.login_title, login_subtitle: appSettings.login_subtitle,
+      login_logo_img: appSettings.login_logo_img || null
+    };
     if(newPass) payload.admin_password = newPass;
     if(existing && existing.length > 0) await sbUpdate('settings', payload, {id: existing[0].id});
     else await sbInsert('settings', payload);
     applyKop();
-    toast('✅ Pengaturan & Kop disimpan!','','success');
+    toast('✅ Pengaturan berhasil disimpan!','','success');
   } catch(e) { toast('❌ Gagal menyimpan','Cek koneksi Supabase','danger'); }
   finally { showLoading(false); }
 }
