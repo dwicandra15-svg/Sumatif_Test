@@ -6,6 +6,7 @@
 <title>Exam System — Ujian Online</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Nunito:wght@300;400;600;700;800&display=swap');
 
@@ -235,7 +236,27 @@ tr:hover td { background:#f8fafc; }
 
 .exam-body { display:flex; gap:0; min-height:calc(100vh - 56px); }
 .question-area { flex:1; padding:28px; max-width:800px; }
-.question-card { background:#fff; border-radius:14px; border:1px solid var(--border); padding:28px; margin-bottom:16px; animation:fadeIn 0.3s ease; }
+.question-card { background:#fff; border-radius:14px; border:1px solid var(--border); padding:28px; margin-bottom:16px; animation:fadeIn 0.3s ease; position:relative; overflow:hidden; user-select:none; -webkit-user-select:none; }
+.q-watermark {
+  position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+  pointer-events:none; z-index:0; overflow:hidden;
+}
+.q-watermark-text {
+  font-family:'Rajdhani',sans-serif; font-size:28px; font-weight:700;
+  color:rgba(26,58,92,0.06); white-space:nowrap; transform:rotate(-25deg);
+  letter-spacing:3px; text-transform:uppercase;
+  /* Repeat watermark */
+  background:repeating-linear-gradient(
+    -25deg,
+    transparent 0px,
+    transparent 80px,
+    rgba(26,58,92,0.04) 80px,
+    rgba(26,58,92,0.04) 81px
+  );
+  width:200%; height:200%; display:flex; flex-wrap:wrap; align-content:space-around;
+  padding:20px;
+}
+.q-content { position:relative; z-index:1; }
 .q-header { display:flex; align-items:center; gap:12px; margin-bottom:20px; }
 .q-number { font-family:'Rajdhani',sans-serif; font-size:14px; font-weight:700; color:#fff; background:var(--primary); padding:4px 14px; border-radius:20px; }
 .q-text { font-size:16px; line-height:1.7; color:var(--text); margin-bottom:20px; }
@@ -355,13 +376,19 @@ tr:hover td { background:#f8fafc; }
       <button class="tab-btn" onclick="switchTab('admin')">🛡️ Admin</button>
     </div>
     <div id="form-siswa">
-      <div class="form-group"><label>NAMA LENGKAP</label><input type="text" id="siswa-nama" placeholder="Masukkan nama lengkap..."></div>
-      <div class="form-group"><label>KELAS</label>
-        <select id="siswa-kelas">
+      <div class="form-group">
+        <label>KELAS</label>
+        <select id="siswa-kelas" onchange="loadNamaSiswaByKelas(this.value)">
           <option value="">-- Pilih Kelas --</option>
           <option>VII-A</option><option>VII-B</option><option>VII-C</option>
           <option>VIII-A</option><option>VIII-B</option><option>VIII-C</option>
           <option>IX-A</option><option>IX-B</option><option>IX-C</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>NAMA SISWA</label>
+        <select id="siswa-nama" disabled>
+          <option value="">-- Pilih kelas terlebih dahulu --</option>
         </select>
       </div>
       <div class="form-group"><label>TOKEN UJIAN</label><input type="text" id="siswa-token" placeholder="Masukkan token dari guru..." style="text-transform:uppercase"></div>
@@ -379,7 +406,7 @@ tr:hover td { background:#f8fafc; }
 <!-- ===== ADMIN ===== -->
 <div id="admin-screen" class="screen">
   <aside class="sidebar">
-    <div class="sidebar-logo"><h2>⚡ Update Faster</h2><p>Dashboard Administrator</p></div>
+    <div class="sidebar-logo"><h2>⚡ More Improvement</h2><p>Dashboard Administrator</p></div>
     <nav class="sidebar-nav">
       <div class="nav-label">UTAMA</div>
       <button class="nav-item active" onclick="showPanel('dashboard',this)"><span class="icon">📊</span> Dashboard</button>
@@ -434,8 +461,25 @@ tr:hover td { background:#f8fafc; }
       <!-- SISWA -->
       <div class="admin-panel" id="panel-siswa">
         <div class="card">
-          <div class="card-header"><h3>👨‍🎓 DATA SISWA</h3><button class="btn btn-primary" onclick="openModal('modal-tambah-siswa')">+ Tambah Siswa</button></div>
-          <div class="card-body"><div class="table-wrap"><table><thead><tr><th>NO</th><th>NAMA SISWA</th><th>KELAS</th><th>AKSI</th></tr></thead><tbody id="siswa-table"><tr><td colspan="4" style="text-align:center;color:var(--text-dim);padding:24px">Memuat data...</td></tr></tbody></table></div></div>
+          <div class="card-header">
+            <h3>👨‍🎓 DATA SISWA</h3>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-outline" onclick="openModal('modal-import-siswa')">📥 Import Excel</button>
+              <button class="btn btn-primary" onclick="openModal('modal-tambah-siswa')">+ Tambah Manual</button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div style="display:flex;gap:8px;margin-bottom:12px">
+              <select id="filter-siswa-kelas" onchange="loadSiswa()" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-family:Nunito,sans-serif;font-size:13px">
+                <option value="">Semua Kelas</option>
+                <option>VII-A</option><option>VII-B</option><option>VII-C</option>
+                <option>VIII-A</option><option>VIII-B</option><option>VIII-C</option>
+                <option>IX-A</option><option>IX-B</option><option>IX-C</option>
+              </select>
+              <div style="font-size:13px;color:var(--text-dim);display:flex;align-items:center" id="siswa-count-info"></div>
+            </div>
+            <div class="table-wrap"><table><thead><tr><th>NO.ABSEN</th><th>NAMA SISWA</th><th>KELAS</th><th>NISN</th><th>AKSI</th></tr></thead><tbody id="siswa-table"><tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:24px">Memuat data...</td></tr></tbody></table></div>
+          </div>
         </div>
       </div>
 
@@ -652,18 +696,90 @@ tr:hover td { background:#f8fafc; }
 </div>
 
 <!-- ===== MODALS ===== -->
-<div class="modal-overlay" id="modal-tambah-siswa">
+<div class="modal-overlay" id="modal-import-siswa">
+  <div class="modal" style="max-width:600px">
+    <div class="modal-header">
+      <h2>📥 Import Siswa dari Excel</h2>
+      <button class="modal-close" onclick="closeModal('modal-import-siswa')">✕</button>
+    </div>
+    <div class="modal-body">
+      <!-- Template download -->
+      <div style="background:linear-gradient(135deg,rgba(14,165,233,0.08),rgba(6,214,160,0.08));border:1px solid rgba(14,165,233,0.2);border-radius:12px;padding:16px;margin-bottom:20px">
+        <div style="font-size:13px;font-weight:800;color:var(--primary);margin-bottom:8px">📋 FORMAT EXCEL YANG DIBUTUHKAN:</div>
+        <div style="font-size:12px;color:var(--text-dim);line-height:2">
+          Kolom A: <strong>no_absen</strong> (angka)<br>
+          Kolom B: <strong>nisn</strong> (teks)<br>
+          Kolom C: <strong>nama</strong> (teks)<br>
+          Kolom D: <strong>kelas</strong> (contoh: VII-A, VIII-B, IX-C)
+        </div>
+        <button class="btn btn-outline btn-sm" style="margin-top:10px" onclick="downloadTemplateSiswa()">⬇️ Download Template Excel</button>
+      </div>
+      <!-- Upload area -->
+      <div style="border:2px dashed var(--border);border-radius:12px;padding:28px;text-align:center;cursor:pointer;transition:all 0.2s" id="import-siswa-drop"
+           onclick="document.getElementById('import-siswa-file').click()"
+           ondragover="event.preventDefault();this.style.borderColor='var(--accent)'"
+           ondragleave="this.style.borderColor='var(--border)'"
+           ondrop="event.preventDefault();handleImportSiswaDrop(event)">
+        <div style="font-size:40px;margin-bottom:8px">📂</div>
+        <div style="font-weight:700;color:var(--primary)">Klik atau drag & drop file Excel</div>
+        <div style="font-size:12px;color:var(--text-dim);margin-top:4px">Format: .xlsx atau .xls</div>
+        <input type="file" id="import-siswa-file" accept=".xlsx,.xls" style="display:none" onchange="handleImportSiswaFile(this)">
+      </div>
+      <!-- Preview -->
+      <div id="import-siswa-preview" style="display:none;margin-top:16px">
+        <div style="font-size:13px;font-weight:800;color:var(--primary);margin-bottom:8px" id="import-siswa-count"></div>
+        <div style="max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:8px">
+          <table style="width:100%;font-size:12px;border-collapse:collapse">
+            <thead><tr style="background:var(--bg)">
+              <th style="padding:8px;text-align:left;border-bottom:1px solid var(--border)">No</th>
+              <th style="padding:8px;text-align:left;border-bottom:1px solid var(--border)">No.Absen</th>
+              <th style="padding:8px;text-align:left;border-bottom:1px solid var(--border)">NISN</th>
+              <th style="padding:8px;text-align:left;border-bottom:1px solid var(--border)">Nama</th>
+              <th style="padding:8px;text-align:left;border-bottom:1px solid var(--border)">Kelas</th>
+            </tr></thead>
+            <tbody id="import-siswa-tbody"></tbody>
+          </table>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;cursor:pointer">
+            <input type="checkbox" id="import-siswa-update" style="accent-color:var(--accent)"> Update data yang sudah ada (berdasarkan NISN)
+          </label>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
+        <button class="btn btn-outline" onclick="closeModal('modal-import-siswa')">Batal</button>
+        <button class="btn btn-primary" id="btn-import-siswa" onclick="prosesImportSiswa()" disabled>📥 Import Sekarang</button>
+      </div>
+    </div>
+  </div>
+</div>
   <div class="modal"><div class="modal-header"><h2>👨‍🎓 Tambah Siswa</h2><button class="modal-close" onclick="closeModal('modal-tambah-siswa')">✕</button></div>
   <div class="modal-body">
-    <div class="form-row"><div class="field"><label>NAMA LENGKAP</label><input type="text" id="new-siswa-nama"></div><div class="field"><label>KELAS</label><select id="new-siswa-kelas"><option>VII-A</option><option>VII-B</option><option>VII-C</option><option>VIII-A</option><option>VIII-B</option><option>VIII-C</option><option>IX-A</option><option>IX-B</option><option>IX-C</option></select></div></div>
-    <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn btn-outline" onclick="closeModal('modal-tambah-siswa')">Batal</button><button class="btn btn-primary" onclick="tambahSiswa()">Simpan</button></div>
+    <div class="form-row">
+      <div class="field"><label>NAMA LENGKAP</label><input type="text" id="new-siswa-nama" placeholder="Nama lengkap siswa..."></div>
+      <div class="field"><label>KELAS</label>
+        <select id="new-siswa-kelas">
+          <option>VII-A</option><option>VII-B</option><option>VII-C</option>
+          <option>VIII-A</option><option>VIII-B</option><option>VIII-C</option>
+          <option>IX-A</option><option>IX-B</option><option>IX-C</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="field"><label>NISN</label><input type="text" id="new-siswa-nisn" placeholder="Nomor Induk Siswa Nasional..."></div>
+      <div class="field"><label>NO. ABSEN</label><input type="number" id="new-siswa-absen" placeholder="1" min="1" max="50"></div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-outline" onclick="closeModal('modal-tambah-siswa')">Batal</button>
+      <button class="btn btn-primary" onclick="tambahSiswa()">💾 Simpan</button>
+    </div>
   </div></div>
 </div>
 
 <div class="modal-overlay" id="modal-tambah-mapel">
   <div class="modal"><div class="modal-header"><h2>📚 Tambah Mata Pelajaran</h2><button class="modal-close" onclick="closeModal('modal-tambah-mapel')">✕</button></div>
   <div class="modal-body">
-    <div class="form-row"><div class="field"><label>NAMA MAPEL</label><input type="text" id="new-mapel-nama" placeholder="Matematika, IPA, dsb..."></div><div class="field"><label>KELAS</label><select id="new-mapel-kelas"><option>Semua Kelas</option><option>VII</option><option>VIII</option><option>IX</option></select></div></div>
+    <div class="form-row"><div class="field"><label>NAMA MAPEL</label><input type="text" id="new-mapel-nama" placeholder="Matematika, IPA, dsb..."></div><div class="field"><label>KELAS</label><select id="new-mapel-kelas"><option>Semua Kelas</option><option>X</option><option>XI</option><option>XII</option></select></div></div>
     <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn btn-outline" onclick="closeModal('modal-tambah-mapel')">Batal</button><button class="btn btn-primary" onclick="tambahMapel()">Simpan</button></div>
   </div></div>
 </div>
@@ -750,6 +866,19 @@ D. Medan
     <div class="form-row">
       <div class="field"><label>TOKEN UJIAN</label><div style="display:flex;gap:8px"><input type="text" id="ujian-token"><button class="btn btn-outline btn-sm" onclick="generateToken()">🔄</button></div></div>
       <div class="field"><label>JUMLAH SOAL</label><input type="number" id="ujian-jumlah" value="30"></div>
+    </div>
+    <div class="form-row">
+      <div class="field">
+        <label>📅 TANGGAL MULAI</label>
+        <input type="datetime-local" id="ujian-tgl-mulai">
+      </div>
+      <div class="field">
+        <label>📅 TANGGAL SELESAI</label>
+        <input type="datetime-local" id="ujian-tgl-selesai">
+      </div>
+    </div>
+    <div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.3);border-radius:8px;padding:10px 14px;font-size:12px;color:#92400e;margin-bottom:12px">
+      ⚠️ Token hanya bisa digunakan dalam rentang tanggal di atas. Di luar tanggal tersebut, siswa tidak bisa masuk.
     </div>
     <div class="form-row">
       <div class="field" style="flex-direction:row;align-items:center;gap:10px"><input type="checkbox" id="ujian-acak-soal" checked style="width:18px;height:18px;accent-color:var(--accent)"><label style="font-size:14px;font-weight:700;color:var(--text)">🔀 Acak Urutan Soal</label></div>
@@ -1168,10 +1297,20 @@ async function loadDashboard() {
 async function loadSiswa() {
   showLoading(true);
   try {
-    const data = await sbSelect('siswa','?order=nama.asc');
+    const filterKelas = document.getElementById('filter-siswa-kelas')?.value || '';
+    const query = filterKelas ? `?kelas=eq.${filterKelas}&order=no_absen.asc,nama.asc` : '?order=kelas.asc,no_absen.asc,nama.asc';
+    const data = await sbSelect('siswa', query);
     const tbody = document.getElementById('siswa-table');
-    if(!data.length) { tbody.innerHTML='<tr><td colspan="4" style="text-align:center;color:var(--text-dim);padding:24px">Belum ada data siswa</td></tr>'; return; }
-    tbody.innerHTML = data.map((s,i)=>`<tr><td>${i+1}</td><td><strong>${s.nama}</strong></td><td>${s.kelas}</td><td><button class="btn btn-sm btn-danger" onclick="hapusSiswa('${s.id}')">🗑 Hapus</button></td></tr>`).join('');
+    const info = document.getElementById('siswa-count-info');
+    if(info) info.textContent = `${data.length} siswa${filterKelas?' di '+filterKelas:''}`;
+    if(!data.length) { tbody.innerHTML=`<tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:24px">Belum ada data siswa${filterKelas?' di kelas '+filterKelas:''}</td></tr>`; return; }
+    tbody.innerHTML = data.map((s,i)=>`<tr>
+      <td style="text-align:center;font-weight:700">${s.no_absen||'-'}</td>
+      <td><strong>${s.nama}</strong><br><small style="color:var(--text-dim)">${s.nisn||'-'}</small></td>
+      <td><span class="badge badge-info">${s.kelas}</span></td>
+      <td><small style="color:var(--text-dim);font-family:monospace">${s.nisn||'-'}</small></td>
+      <td><button class="btn btn-sm btn-danger" onclick="hapusSiswa('${s.id}')">🗑</button></td>
+    </tr>`).join('');
   } catch(e) { toast('❌ Gagal memuat siswa','Cek koneksi','danger'); }
   finally { showLoading(false); }
 }
@@ -1179,12 +1318,16 @@ async function loadSiswa() {
 async function tambahSiswa() {
   const nama = document.getElementById('new-siswa-nama').value.trim();
   const kelas = document.getElementById('new-siswa-kelas').value;
+  const nisn = document.getElementById('new-siswa-nisn').value.trim();
+  const no_absen = parseInt(document.getElementById('new-siswa-absen').value) || 0;
   if(!nama) { toast('⚠️ Nama tidak boleh kosong','','warn'); return; }
   showLoading(true);
   try {
-    await sbInsert('siswa', { id:'S'+Date.now(), nama, kelas });
+    await sbInsert('siswa', { id:'S'+Date.now(), nama, kelas, nisn, no_absen });
     await loadSiswa(); closeModal('modal-tambah-siswa');
     document.getElementById('new-siswa-nama').value='';
+    document.getElementById('new-siswa-nisn').value='';
+    document.getElementById('new-siswa-absen').value='';
     toast('✅ Siswa berhasil ditambahkan','','success');
   } catch(e) { toast('❌ Gagal menambah siswa','','danger'); }
   finally { showLoading(false); }
@@ -1196,9 +1339,140 @@ async function hapusSiswa(id) {
   toast('🗑️ Siswa dihapus','','warn');
 }
 
+// Load nama siswa berdasarkan kelas yang dipilih di form login
+async function loadNamaSiswaByKelas(kelas) {
+  const sel = document.getElementById('siswa-nama');
+  sel.innerHTML = '<option value="">Memuat...</option>';
+  sel.disabled = true;
+  if(!kelas) { sel.innerHTML='<option value="">-- Pilih kelas terlebih dahulu --</option>'; return; }
+  try {
+    const data = await sbSelect('siswa', `?kelas=eq.${kelas}&order=no_absen.asc,nama.asc`);
+    if(!data.length) {
+      sel.innerHTML='<option value="">-- Belum ada siswa di kelas ini --</option>';
+      return;
+    }
+    sel.innerHTML = '<option value="">-- Pilih Nama --</option>' +
+      data.map(s=>`<option value="${s.nama}">${s.no_absen?s.no_absen+'. ':''}${s.nama}</option>`).join('');
+    sel.disabled = false;
+  } catch(e) {
+    sel.innerHTML='<option value="">-- Gagal memuat, cek koneksi --</option>';
+  }
+}
+
 // ============================================================
-//  MAPEL
+//  IMPORT SISWA DARI EXCEL
 // ============================================================
+let parsedSiswa = [];
+
+function handleImportSiswaFile(input) {
+  const file = input.files[0];
+  if(file) parseExcelSiswa(file);
+}
+function handleImportSiswaDrop(e) {
+  const file = e.dataTransfer.files[0];
+  if(file) parseExcelSiswa(file);
+}
+
+function parseExcelSiswa(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = new Uint8Array(e.target.result);
+      const wb = XLSX.read(data, {type:'array'});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+
+      parsedSiswa = [];
+      // Skip baris header jika ada (cek baris pertama)
+      const startRow = (String(rows[0]?.[0]||'').toLowerCase().includes('no') || String(rows[0]?.[2]||'').toLowerCase().includes('nama')) ? 1 : 0;
+
+      for(let i = startRow; i < rows.length; i++) {
+        const row = rows[i];
+        if(!row[2] && !row[0]) continue; // skip baris kosong
+        const no_absen = parseInt(row[0]) || 0;
+        const nisn = String(row[1]||'').trim();
+        const nama = String(row[2]||'').trim();
+        const kelas = String(row[3]||'').trim();
+        if(!nama || !kelas) continue;
+        parsedSiswa.push({ no_absen, nisn, nama, kelas });
+      }
+
+      // Tampilkan preview
+      const preview = document.getElementById('import-siswa-preview');
+      const tbody = document.getElementById('import-siswa-tbody');
+      const count = document.getElementById('import-siswa-count');
+      const btn = document.getElementById('btn-import-siswa');
+
+      if(!parsedSiswa.length) { toast('⚠️ Tidak ada data valid di file','Pastikan format sesuai template','warn'); return; }
+
+      count.textContent = `✅ ${parsedSiswa.length} siswa siap diimport`;
+      tbody.innerHTML = parsedSiswa.map((s,i)=>`<tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:6px 8px">${i+1}</td>
+        <td style="padding:6px 8px">${s.no_absen||'-'}</td>
+        <td style="padding:6px 8px;font-family:monospace">${s.nisn||'-'}</td>
+        <td style="padding:6px 8px"><strong>${s.nama}</strong></td>
+        <td style="padding:6px 8px"><span class="badge badge-info">${s.kelas}</span></td>
+      </tr>`).join('');
+      preview.style.display = 'block';
+      btn.disabled = false;
+      document.getElementById('import-siswa-drop').style.borderColor = 'var(--accent2)';
+    } catch(err) {
+      toast('❌ Gagal membaca file Excel','Pastikan file tidak rusak','danger');
+      console.error(err);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+async function prosesImportSiswa() {
+  if(!parsedSiswa.length) return;
+  const doUpdate = document.getElementById('import-siswa-update').checked;
+  showLoading(true);
+  try {
+    let inserted=0, updated=0, skipped=0;
+    for(const s of parsedSiswa) {
+      if(doUpdate && s.nisn) {
+        // Cek apakah NISN sudah ada
+        const existing = await sbSelect('siswa', `?nisn=eq.${s.nisn}`);
+        if(existing.length) {
+          await sbUpdate('siswa', { nama:s.nama, kelas:s.kelas, no_absen:s.no_absen }, { id: existing[0].id });
+          updated++; continue;
+        }
+      }
+      // Cek apakah nama+kelas sudah ada (hindari duplikat)
+      const existingNama = await sbSelect('siswa', `?nama=eq.${encodeURIComponent(s.nama)}&kelas=eq.${s.kelas}`);
+      if(existingNama.length && !doUpdate) { skipped++; continue; }
+      if(existingNama.length && doUpdate) {
+        await sbUpdate('siswa', { nisn:s.nisn, no_absen:s.no_absen }, { id: existingNama[0].id });
+        updated++; continue;
+      }
+      await sbInsert('siswa', { id:'S'+Date.now()+'_'+Math.random().toString(36).substr(2,4), ...s });
+      inserted++;
+      // Delay kecil agar id tidak sama
+      await new Promise(r => setTimeout(r, 10));
+    }
+    await loadSiswa();
+    closeModal('modal-import-siswa');
+    parsedSiswa = [];
+    toast(`✅ Import selesai!`, `${inserted} ditambah, ${updated} diupdate, ${skipped} dilewati`, 'success');
+  } catch(e) {
+    toast('❌ Gagal import siswa','Cek koneksi internet','danger');
+    console.error(e);
+  } finally { showLoading(false); }
+}
+
+function downloadTemplateSiswa() {
+  const ws = XLSX.utils.aoa_to_sheet([
+    ['no_absen','nisn','nama','kelas'],
+    [1,'1234567890','Ahmad Fauzi','VII-A'],
+    [2,'0987654321','Siti Rahayu','VII-A'],
+    [3,'1122334455','Budi Santoso','VIII-B'],
+  ]);
+  ws['!cols'] = [{wch:10},{wch:15},{wch:30},{wch:10}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Data Siswa');
+  XLSX.writeFile(wb, 'template_import_siswa.xlsx');
+}
 async function loadMapel() {
   showLoading(true);
   try {
@@ -1534,18 +1808,33 @@ async function loadUjian() {
   try {
     const ujian=await sbSelect('ujian','?order=created_at.desc');
     const tbody=document.getElementById('ujian-table');
-    if(!ujian.length) { tbody.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--text-dim);padding:24px">Belum ada ujian</td></tr>'; return; }
-    tbody.innerHTML=ujian.map(u=>`<tr>
-      <td><strong>${u.mapel_nama}</strong></td>
-      <td><code style="background:#f0f4f8;padding:3px 8px;border-radius:4px;font-weight:700;font-size:15px">${u.token}</code></td>
-      <td>${u.durasi} menit</td>
-      <td>${u.acak_soal?'<span class="badge badge-success">✓</span>':'<span class="badge badge-danger">✗</span>'} / ${u.acak_jawaban?'<span class="badge badge-success">✓</span>':'<span class="badge badge-danger">✗</span>'}</td>
-      <td><span class="badge badge-${u.status==='aktif'?'success':'danger'}">${u.status.toUpperCase()}</span></td>
-      <td>
-        <button class="btn btn-sm ${u.status==='aktif'?'btn-warn':'btn-success'}" onclick="toggleUjian('${u.id}','${u.status}')">${u.status==='aktif'?'⏹ Stop':'▶ Aktif'}</button>
-        <button class="btn btn-sm btn-danger" onclick="hapusUjian('${u.id}')">🗑</button>
-      </td>
-    </tr>`).join('');
+    if(!ujian.length) { tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text-dim);padding:24px">Belum ada ujian</td></tr>'; return; }
+    const now = new Date();
+    tbody.innerHTML=ujian.map(u=>{
+      // Cek status tanggal
+      const mulai = u.tgl_mulai ? new Date(u.tgl_mulai) : null;
+      const selesai = u.tgl_selesai ? new Date(u.tgl_selesai) : null;
+      let tglStatus = '';
+      if(mulai && selesai) {
+        if(now < mulai) tglStatus = `<span class="badge" style="background:rgba(245,158,11,0.1);color:#92400e">⏳ Belum mulai</span>`;
+        else if(now > selesai) tglStatus = `<span class="badge badge-danger">⛔ Sudah lewat</span>`;
+        else tglStatus = `<span class="badge badge-success">✅ Berlangsung</span>`;
+      }
+      const tglInfo = mulai && selesai
+        ? `<small style="color:var(--text-dim);font-size:10px;display:block">${mulai.toLocaleDateString('id-ID')} – ${selesai.toLocaleDateString('id-ID')}</small>`
+        : `<small style="color:var(--text-dim);font-size:10px">Tidak dibatasi</small>`;
+      return `<tr>
+        <td><strong>${u.mapel_nama}</strong>${tglInfo}</td>
+        <td><code style="background:#f0f4f8;padding:3px 8px;border-radius:4px;font-weight:700;font-size:15px">${u.token}</code></td>
+        <td>${u.durasi} mnt</td>
+        <td>${u.acak_soal?'<span class="badge badge-success">✓</span>':'<span class="badge badge-danger">✗</span>'} / ${u.acak_jawaban?'<span class="badge badge-success">✓</span>':'<span class="badge badge-danger">✗</span>'}</td>
+        <td><span class="badge badge-${u.status==='aktif'?'success':'danger'}">${u.status.toUpperCase()}</span>${tglStatus?'<br>'+tglStatus:''}</td>
+        <td>
+          <button class="btn btn-sm ${u.status==='aktif'?'btn-warn':'btn-success'}" onclick="toggleUjian('${u.id}','${u.status}')">${u.status==='aktif'?'⏹ Stop':'▶ Aktif'}</button>
+          <button class="btn btn-sm btn-danger" onclick="hapusUjian('${u.id}')">🗑</button>
+        </td>
+      </tr>`;
+    }).join('');
   } catch(e) { toast('❌ Gagal memuat ujian','','danger'); }
   finally { showLoading(false); }
 }
@@ -1563,13 +1852,18 @@ async function buatUjian() {
   const jumlah_soal=parseInt(document.getElementById('ujian-jumlah').value);
   const acak_soal=document.getElementById('ujian-acak-soal').checked;
   const acak_jawaban=document.getElementById('ujian-acak-jawaban').checked;
+  const tgl_mulai=document.getElementById('ujian-tgl-mulai').value;
+  const tgl_selesai=document.getElementById('ujian-tgl-selesai').value;
   const mapelEl=document.getElementById('ujian-mapel');
   const mapel_nama=mapelEl.options[mapelEl.selectedIndex]?.text||'?';
-  if(!mapel_id) { toast('⚠️ Pilih mata pelajaran dulu!','Tambahkan mapel di menu Mata Pelajaran','warn'); return; }
+  if(!mapel_id) { toast('⚠️ Pilih mata pelajaran dulu!','','warn'); return; }
   if(!token||!durasi) { toast('⚠️ Lengkapi semua field','','warn'); return; }
+  if(tgl_mulai && tgl_selesai && new Date(tgl_mulai) >= new Date(tgl_selesai)) {
+    toast('⚠️ Tanggal selesai harus setelah tanggal mulai','','warn'); return;
+  }
   showLoading(true);
   try {
-    await sbInsert('ujian',{id:'U'+Date.now(),mapel_id,mapel_nama,durasi,token,jumlah_soal,acak_soal,acak_jawaban,status:'aktif'});
+    await sbInsert('ujian',{id:'U'+Date.now(),mapel_id,mapel_nama,durasi,token,jumlah_soal,acak_soal,acak_jawaban,status:'aktif',tgl_mulai,tgl_selesai});
     await loadUjian(); closeModal('modal-buat-ujian');
     toast(`✅ Ujian aktif! Token: ${token}`,'Bagikan token ini ke siswa','success');
   } catch(e) { toast('❌ Gagal membuat ujian','Token mungkin sudah digunakan','danger'); }
@@ -1840,24 +2134,55 @@ let timeLeft=0, violationCount=0, examSubmitted=false;
 let currentSiswa=null, currentUjian=null, currentSesiId=null;
 
 async function loginSiswa() {
-  const nama=document.getElementById('siswa-nama').value.trim();
   const kelas=document.getElementById('siswa-kelas').value;
+  const nama=document.getElementById('siswa-nama').value;
   const token=document.getElementById('siswa-token').value.trim().toUpperCase();
-  if(!nama||!kelas||!token) { toast('⚠️ Lengkapi semua data!','','warn'); return; }
+  if(!kelas) { toast('⚠️ Pilih kelas terlebih dahulu!','','warn'); return; }
+  if(!nama) { toast('⚠️ Pilih nama Anda!','','warn'); return; }
+  if(!token) { toast('⚠️ Masukkan token ujian!','','warn'); return; }
 
   showLoading(true);
   try {
+    // 1. Cek token & status ujian
     const ujianData=await sbSelect('ujian',`?token=eq.${token}&status=eq.aktif`);
-    if(!ujianData.length) { toast('❌ Token tidak valid atau ujian belum aktif','','danger'); showLoading(false); return; }
+    if(!ujianData.length) { toast('❌ Token tidak valid atau ujian tidak aktif','','danger'); showLoading(false); return; }
     const ujian=ujianData[0];
 
-    // Check existing session (resume support)
+    // 2. Cek batas tanggal
+    const now = new Date();
+    if(ujian.tgl_mulai && now < new Date(ujian.tgl_mulai)) {
+      const tgl = new Date(ujian.tgl_mulai).toLocaleString('id-ID');
+      toast('⏳ Ujian belum dibuka',`Ujian baru bisa diakses mulai ${tgl}`,'warn');
+      showLoading(false); return;
+    }
+    if(ujian.tgl_selesai && now > new Date(ujian.tgl_selesai)) {
+      toast('⛔ Waktu ujian sudah berakhir','Ujian ini sudah tidak bisa diakses','danger');
+      showLoading(false); return;
+    }
+
+    // 3. Validasi siswa terdaftar
+    const siswaData=await sbSelect('siswa',`?nama=eq.${encodeURIComponent(nama)}&kelas=eq.${kelas}`);
+    if(!siswaData.length) {
+      toast('❌ Nama Anda tidak terdaftar','Hubungi guru untuk mendaftarkan nama Anda','danger');
+      showLoading(false); return;
+    }
+    const siswaRecord = siswaData[0];
+
+    // 4. Cek apakah sudah pernah mengerjakan ujian ini (sudah submit)
+    const sudahSelesai=await sbSelect('hasil',`?nama=eq.${encodeURIComponent(nama)}&kelas=eq.${kelas}&ujian_id=eq.${ujian.id}`);
+    if(sudahSelesai.length) {
+      toast('⛔ Anda sudah mengerjakan ujian ini','Setiap siswa hanya boleh mengerjakan ujian 1 kali','danger');
+      showLoading(false); return;
+    }
+
+    // 5. Cek sesi aktif (resume jika ada)
     const existingSesi=await sbSelect('sesi_ujian',`?nama=eq.${encodeURIComponent(nama)}&kelas=eq.${kelas}&ujian_id=eq.${ujian.id}&status=eq.aktif`);
-    
-    currentSiswa={nama,kelas,id:'S'+Date.now()};
+
+    currentSiswa={nama, kelas, id: siswaRecord.id, nisn: siswaRecord.nisn||'', no_absen: siswaRecord.no_absen||0};
     currentUjian=ujian;
 
     if(existingSesi.length>0) {
+      // Lanjutkan sesi yang ada (refresh/resume)
       const sesi=existingSesi[0];
       currentSesiId=sesi.id;
       answers=sesi.answers||{};
@@ -1866,24 +2191,24 @@ async function loginSiswa() {
       violationCount=sesi.violations||0;
       await loadExamQuestions(ujian, false);
       currentQ=sesi.current_question||0;
+      toast('🔄 Melanjutkan ujian Anda...','','info');
     } else {
+      // Sesi baru
       currentSesiId='SESI'+Date.now();
       answers={}; flagged=[]; currentQ=0; violationCount=0;
       timeLeft=ujian.durasi*60;
       await loadExamQuestions(ujian, true);
       await sbInsert('sesi_ujian',{
-        id:currentSesiId, siswa_id:currentSiswa.id, nama, kelas,
+        id:currentSesiId, siswa_id:siswaRecord.id, nama, kelas,
         ujian_id:ujian.id, answers:{}, current_question:0,
         flagged:'[]', time_left:timeLeft, status:'aktif',
         violations:0, soal_dijawab:0, total_soal:examQuestions.length
       });
     }
 
-    // Simpan sesi siswa ke sessionStorage untuk recovery saat refresh
+    // Simpan ke sessionStorage untuk recovery refresh
     sessionStorage.setItem('siswaSession', JSON.stringify({
-      nama, kelas, token,
-      sesiId: currentSesiId,
-      ujianId: ujian.id
+      nama, kelas, token, sesiId: currentSesiId, ujianId: ujian.id
     }));
 
     examSubmitted=false;
@@ -1894,7 +2219,7 @@ async function loginSiswa() {
     renderQuestion(); renderQNav(); startTimer(); setupAntiCheat();
     setTimeout(()=>document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen().catch(()=>{}),500);
   } catch(e) { toast('❌ Gagal memuat ujian','Cek koneksi internet','danger'); console.error(e); }
-  showLoading(false);
+  finally { showLoading(false); }
 }
 
 async function loadExamQuestions(ujian, doShuffle) {
@@ -1931,6 +2256,11 @@ function renderQuestion() {
   const tl=typeLabels[q.tipe]||typeLabels.pg;
   let answerHTML='';
 
+  // Watermark nama siswa (repeat 12x)
+  const wmName = currentSiswa ? currentSiswa.nama.toUpperCase() : '';
+  const wmRepeat = Array(12).fill(wmName).join('  ·  ');
+  const watermarkHTML = `<div class="q-watermark"><div class="q-watermark-text">${Array(6).fill(wmRepeat).join('<br>')}</div></div>`;
+
   if(q.tipe==='pg') {
     answerHTML=`<div class="answer-options">${(q.options||[]).map((opt,i)=>{
       const letter=String.fromCharCode(65+i); const sel=answers[q.id]===i?'selected':'';
@@ -1963,13 +2293,16 @@ function renderQuestion() {
   }
 
   card.innerHTML=`
-    <div class="q-header">
-      <div class="q-number">Soal ${currentQ+1} / ${examQuestions.length}</div>
-      <div style="color:${tl.color};font-size:11px;font-weight:800;letter-spacing:1px">${tl.label}</div>
-    </div>
-    ${q.image_url?`<img src="${q.image_url}" class="q-image" alt="Gambar soal">`:''}
-    <div class="q-text">${q.text}</div>
-    ${answerHTML}`;
+    ${watermarkHTML}
+    <div class="q-content">
+      <div class="q-header">
+        <div class="q-number">Soal ${currentQ+1} / ${examQuestions.length}</div>
+        <div style="color:${tl.color};font-size:11px;font-weight:800;letter-spacing:1px">${tl.label}</div>
+      </div>
+      ${q.image_url?`<img src="${q.image_url}" class="q-image" alt="Gambar soal">`:''}
+      <div class="q-text">${q.text}</div>
+      ${answerHTML}
+    </div>`;
 
   document.getElementById('btn-prev').disabled=currentQ===0;
   document.getElementById('btn-next').textContent=currentQ===examQuestions.length-1?'✅ Selesai':'Selanjutnya ▶';
@@ -2034,34 +2367,189 @@ function startTimer() {
 }
 
 // ANTI-CHEAT
-function setupAntiCheat() {
-  document.addEventListener('visibilitychange',handleVisibilityChange);
-  window.addEventListener('blur',handleWindowBlur);
-  document.addEventListener('contextmenu',e=>e.preventDefault());
-  document.addEventListener('keydown',e=>{
-    if(e.ctrlKey&&['u','s'].includes(e.key.toLowerCase())){e.preventDefault();recordViolation('Shortcut terlarang: Ctrl+'+e.key.toUpperCase());}
-  });
-  document.addEventListener('fullscreenchange',()=>{ if(!document.fullscreenElement&&!examSubmitted) recordViolation('Keluar dari fullscreen'); });
+// ============================================================
+//  SECURITY — Anti-Cheat System (Enhanced v7)
+// ============================================================
+
+// Cooldown tracker — hindari spam pelanggaran yang sama
+const violationCooldown = {};
+function canRecord(type, ms=3000) {
+  const now = Date.now();
+  if(violationCooldown[type] && now - violationCooldown[type] < ms) return false;
+  violationCooldown[type] = now;
+  return true;
 }
 
-function handleVisibilityChange() { if(document.hidden&&!examSubmitted) recordViolation('Berpindah tab/aplikasi'); }
-function handleWindowBlur() { if(!examSubmitted) setTimeout(()=>{ if(!document.hasFocus()) recordViolation('Jendela browser kehilangan fokus'); },200); }
+// DevTools detector — cek selisih ukuran window
+let devtoolsInterval = null;
+function startDevToolsDetection() {
+  const threshold = 160;
+  devtoolsInterval = setInterval(() => {
+    if(examSubmitted) return;
+    const widthDiff = window.outerWidth - window.innerWidth;
+    const heightDiff = window.outerHeight - window.innerHeight;
+    if(widthDiff > threshold || heightDiff > threshold) {
+      if(canRecord('devtools', 5000)) recordViolation('Membuka DevTools (F12)');
+    }
+  }, 1000);
+}
+
+// Resize / Split Screen detector
+let originalW = window.innerWidth;
+let originalH = window.innerHeight;
+let resizeTimer = null;
+function handleResize() {
+  if(examSubmitted) return;
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    const wDiff = Math.abs(window.innerWidth - originalW);
+    const hDiff = Math.abs(window.innerHeight - originalH);
+    // Toleransi kecil untuk resize normal browser
+    if(wDiff > 100 || hDiff > 100) {
+      if(canRecord('resize', 4000)) recordViolation('Mengubah ukuran window / Split Screen');
+      originalW = window.innerWidth;
+      originalH = window.innerHeight;
+    }
+  }, 500);
+}
+
+function setupAntiCheat() {
+  // Set ukuran awal
+  originalW = window.innerWidth;
+  originalH = window.innerHeight;
+
+  // Existing detections
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+  window.addEventListener('blur', handleWindowBlur);
+  document.addEventListener('contextmenu', e => e.preventDefault());
+  document.addEventListener('fullscreenchange', () => {
+    if(!document.fullscreenElement && !examSubmitted) recordViolation('Keluar dari fullscreen');
+  });
+
+  // NEW: Resize / Split Screen
+  window.addEventListener('resize', handleResize);
+
+  // NEW: Enhanced keydown — blokir lebih banyak shortcut
+  document.addEventListener('keydown', handleKeydown);
+
+  // NEW: Blokir copy teks soal
+  document.addEventListener('copy', handleCopy);
+  document.addEventListener('cut', e => e.preventDefault());
+
+  // NEW: Blokir Print Screen (sebagian browser)
+  document.addEventListener('keyup', e => {
+    if(e.key === 'PrintScreen') {
+      navigator.clipboard?.writeText('').catch(()=>{});
+      if(canRecord('printscreen', 5000)) recordViolation('Mencoba screenshot (Print Screen)');
+    }
+  });
+
+  // NEW: DevTools detection
+  startDevToolsDetection();
+
+  // NEW: Blokir drag teks
+  document.addEventListener('dragstart', e => e.preventDefault());
+
+  // NEW: Cegah select-all
+  document.addEventListener('selectstart', e => {
+    // Boleh select di textarea (jawaban essay)
+    if(e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
+    e.preventDefault();
+  });
+}
+
+function handleKeydown(e) {
+  if(examSubmitted) return;
+  const key = e.key.toLowerCase();
+  const ctrl = e.ctrlKey || e.metaKey;
+  const blocked = {
+    'u': 'Ctrl+U (View Source)',
+    's': 'Ctrl+S (Save)',
+    'p': 'Ctrl+P (Print)',
+    'a': 'Ctrl+A (Select All)',
+    'j': 'Ctrl+J (Downloads)',
+    'i': 'Ctrl+I (DevTools)',
+    'c': null, // ditangani terpisah oleh copy event
+  };
+  if(ctrl && key in blocked) {
+    e.preventDefault();
+    if(blocked[key] && canRecord(key, 3000)) recordViolation('Shortcut terlarang: ' + blocked[key]);
+    return;
+  }
+  // F-keys
+  if(['f12','f11','f5'].includes(key)) {
+    e.preventDefault();
+    if(key === 'f12' && canRecord('f12', 5000)) recordViolation('Membuka DevTools (F12)');
+  }
+}
+
+function handleCopy(e) {
+  if(examSubmitted) return;
+  // Boleh copy di textarea jawaban essay
+  if(document.activeElement?.tagName === 'TEXTAREA') return;
+  e.preventDefault();
+  if(canRecord('copy', 3000)) recordViolation('Mencoba menyalin teks soal (Ctrl+C)');
+}
+
+function handleVisibilityChange() {
+  if(document.hidden && !examSubmitted) recordViolation('Berpindah tab/aplikasi');
+}
+function handleWindowBlur() {
+  if(!examSubmitted) setTimeout(() => {
+    if(!document.hasFocus()) recordViolation('Jendela browser kehilangan fokus');
+  }, 200);
+}
 
 async function recordViolation(type) {
   violationCount++;
-  const vio={id:'V'+Date.now(),sesi_id:currentSesiId,nama:currentSiswa.nama,kelas:currentSiswa.kelas,ujian_id:currentUjian.id,type,time:new Date().toLocaleTimeString('id-ID'),date:new Date().toLocaleDateString('id-ID'),count:violationCount,seen:false};
-  try { await sbInsert('violations',vio); } catch(e) {}
-  try { await sbUpdate('sesi_ujian',{violations:violationCount},{id:currentSesiId}); } catch(e) {}
-  document.getElementById('vio-popup-count').textContent=violationCount;
-  document.getElementById('vio-popup-msg').textContent=`Terdeteksi: "${type}"\nPelanggaran ke-${violationCount} dicatat & dilaporkan ke pengawas.`;
+  const vio = {
+    id: 'V'+Date.now(),
+    sesi_id: currentSesiId,
+    nama: currentSiswa.nama,
+    kelas: currentSiswa.kelas,
+    ujian_id: currentUjian.id,
+    type, count: violationCount,
+    time: new Date().toLocaleTimeString('id-ID'),
+    date: new Date().toLocaleDateString('id-ID'),
+    seen: false
+  };
+  try { await sbInsert('violations', vio); } catch(e) {}
+  try { await sbUpdate('sesi_ujian', {violations: violationCount}, {id: currentSesiId}); } catch(e) {}
+
+  // Popup pelanggaran
+  const icons = {
+    'Berpindah tab': '🔕',
+    'Keluar dari fullscreen': '⛶',
+    'Jendela browser': '🪟',
+    'Mencoba menyalin': '📋',
+    'Membuka DevTools': '🔧',
+    'Shortcut terlarang': '⌨️',
+    'Mengubah ukuran': '📐',
+    'Mencoba screenshot': '📸',
+  };
+  const icon = Object.keys(icons).find(k => type.includes(k)) ? icons[Object.keys(icons).find(k => type.includes(k))] : '🚨';
+
+  document.getElementById('vio-popup-count').textContent = violationCount;
+  document.getElementById('vio-popup-msg').textContent = `${icon} Terdeteksi: "${type}"\nPelanggaran ke-${violationCount} telah dicatat & dilaporkan ke pengawas.`;
   document.getElementById('violation-overlay').classList.add('show');
-  const maxVio=appSettings.max_violation||3;
-  if(violationCount>=maxVio) setTimeout(()=>submitExam(false,true),2000);
+
+  const maxVio = appSettings.max_violation || 3;
+  if(violationCount >= maxVio) setTimeout(() => submitExam(false, true), 2000);
 }
 
 function closeViolationPopup() {
   document.getElementById('violation-overlay').classList.remove('show');
-  document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen().catch(()=>{});
+  document.documentElement.requestFullscreen && document.documentElement.requestFullscreen().catch(()=>{});
+}
+
+// Cleanup saat submit
+function cleanupAntiCheat() {
+  document.removeEventListener('visibilitychange', handleVisibilityChange);
+  window.removeEventListener('blur', handleWindowBlur);
+  window.removeEventListener('resize', handleResize);
+  document.removeEventListener('keydown', handleKeydown);
+  document.removeEventListener('copy', handleCopy);
+  clearInterval(devtoolsInterval);
 }
 
 function confirmSubmit() {
@@ -2076,10 +2564,8 @@ async function submitExam(autoTime=false,autoViolation=false) {
   if(examSubmitted) return;
   examSubmitted=true;
   clearInterval(timerInterval);
-  document.removeEventListener('visibilitychange',handleVisibilityChange);
-  window.removeEventListener('blur',handleWindowBlur);
+  cleanupAntiCheat();
   if(document.fullscreenElement) document.exitFullscreen();
-  // Hapus sesi siswa dari sessionStorage karena ujian sudah selesai
   sessionStorage.removeItem('siswaSession');
   showLoading(true);
 
