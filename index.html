@@ -375,8 +375,8 @@ tr:hover td { background:#f8fafc; }
       <button class="btn-login" onclick="loginSiswa()">🚀 MULAI UJIAN</button>
     </div>
     <div id="form-admin" style="display:none">
-      <div class="form-group"><label>USERNAME</label><input type="text" id="admin-user" value="admin"></div>
-      <div class="form-group"><label>PASSWORD</label><input type="password" id="admin-pass" value="admin123"></div>
+      <div class="form-group"><label>USERNAME</label><input type="text" id="admin-user" placeholder="Masukkan username..."></div>
+      <div class="form-group"><label>PASSWORD</label><input type="password" id="admin-pass" placeholder="Masukkan password..."></div>
       <button class="btn-login" onclick="loginAdmin()">🔐 MASUK DASHBOARD</button>
     </div>
     <div class="watermark-login">Created & Developed by D.D Candra</div>
@@ -583,11 +583,31 @@ tr:hover td { background:#f8fafc; }
 
 <!-- ===== RESULT ===== -->
 <div id="result-screen" class="screen">
-  <div class="result-header"><h1>📊 HASIL UJIAN</h1><p style="margin-top:4px;opacity:0.6;font-size:14px">Ringkasan hasil pengerjaan</p></div>
-  <div style="padding:28px">
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:24px" id="result-stats"></div>
-    <div class="card"><div class="card-header"><h3>📝 DETAIL JAWABAN</h3></div><div class="card-body" id="result-detail"></div></div>
-    <div style="text-align:center;margin-top:16px"><button class="btn btn-outline" onclick="showScreen('login-screen')">🔙 Kembali ke Login</button></div>
+  <div class="result-header">
+    <div style="display:flex;align-items:center;gap:12px">
+      <span style="font-size:28px" id="result-header-icon">📊</span>
+      <div>
+        <h1>HASIL UJIAN</h1>
+        <p style="margin-top:4px;opacity:0.6;font-size:14px" id="result-header-sub">Ringkasan hasil pengerjaan</p>
+      </div>
+    </div>
+  </div>
+  <div style="padding:28px;max-width:600px;margin:0 auto">
+    <!-- Status Banner -->
+    <div id="result-status-banner" style="text-align:center;margin-bottom:24px;padding:32px 20px;border-radius:16px"></div>
+    <!-- Stats Grid -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px" id="result-stats"></div>
+    <!-- Info -->
+    <div style="background:#fff;border:1px solid var(--border);border-radius:14px;padding:20px;text-align:center;margin-bottom:20px">
+      <div style="font-size:13px;color:var(--text-dim);line-height:1.8">
+        Hasil ujian Anda telah tersimpan dan dapat dilihat oleh guru.<br>
+        <strong style="color:var(--primary)">Terima kasih telah mengerjakan ujian dengan jujur.</strong>
+      </div>
+    </div>
+    <div style="text-align:center">
+      <button class="btn btn-outline" onclick="showScreen('login-screen')" style="padding:12px 32px">🔙 Kembali ke Halaman Utama</button>
+    </div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:var(--text-dim)">Created & Developed by D.D Candra</div>
   </div>
 </div>
 
@@ -609,13 +629,21 @@ tr:hover td { background:#f8fafc; }
 </div>
 
 <div class="modal-overlay" id="modal-tambah-soal">
-  <div class="modal" style="max-width:680px"><div class="modal-header"><h2>✏️ Buat Soal</h2><button class="modal-close" onclick="closeModal('modal-tambah-soal')">✕</button></div>
+  <div class="modal" style="max-width:680px">
+    <div class="modal-header">
+      <h2 id="modal-soal-title">✏️ Buat Soal</h2>
+      <button class="modal-close" onclick="closeModal('modal-tambah-soal');resetSoalForm()">✕</button>
+    </div>
+    <input type="hidden" id="edit-soal-id" value="">
   <div class="modal-body">
     <div class="form-row">
       <div class="field"><label>MATA PELAJARAN</label><select id="soal-mapel"></select></div>
       <div class="field"><label>TIPE SOAL</label><select id="soal-tipe" onchange="updateSoalForm()"><option value="pg">Pilihan Ganda (Single)</option><option value="mc">Multiple Choice</option><option value="essay">Essay / Uraian</option><option value="matching">Menjodohkan</option><option value="bs">Benar / Salah</option></select></div>
     </div>
-    <div class="field" style="margin-bottom:16px"><label>PERTANYAAN</label><textarea id="soal-text" rows="3" placeholder="Tulis pertanyaan..."></textarea></div>
+    <div class="form-row">
+      <div class="field" style="flex:3"><label>PERTANYAAN</label><textarea id="soal-text" rows="3" placeholder="Tulis pertanyaan..."></textarea></div>
+      <div class="field" style="flex:1"><label>POIN SOAL</label><input type="number" id="soal-poin" value="1" min="1" max="100" style="height:100%"><small style="color:var(--text-dim);font-size:11px">Nilai jika benar</small></div>
+    </div>
     <div class="field" style="margin-bottom:16px"><label>GAMBAR SOAL (Opsional)</label><input type="file" id="soal-gambar" accept="image/*" onchange="previewGambar(this)"><img id="gambar-preview" style="max-height:150px;margin-top:8px;border-radius:8px;display:none"></div>
     <div id="form-pg" class="soal-form-container show">
       <label style="font-size:12px;font-weight:800;color:var(--text-dim);letter-spacing:1px">PILIHAN JAWABAN (✓ = Benar)</label>
@@ -634,7 +662,10 @@ tr:hover td { background:#f8fafc; }
     <div id="form-bs" class="soal-form-container">
       <div class="field"><label>JAWABAN BENAR</label><select id="bs-answer"><option value="benar">BENAR</option><option value="salah">SALAH</option></select></div>
     </div>
-    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px"><button class="btn btn-outline" onclick="closeModal('modal-tambah-soal')">Batal</button><button class="btn btn-primary" onclick="simpanSoal()">💾 Simpan Soal</button></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px">
+      <button class="btn btn-outline" onclick="closeModal('modal-tambah-soal');resetSoalForm()">Batal</button>
+      <button class="btn btn-primary" id="btn-simpan-soal" onclick="simpanSoal()">💾 Simpan Soal</button>
+    </div>
   </div></div>
 </div>
 
@@ -1102,13 +1133,16 @@ function renderSoalList(soalList, mapel) {
     return `<div class="soal-item">
       <div class="soal-item-header">
         <div>
-          <div class="soal-nomor">Soal ${i+1}</div>
+          <div class="soal-nomor">Soal ${i+1} <span style="font-family:Rajdhani,sans-serif;font-size:13px;color:var(--accent);font-weight:700;margin-left:6px">● ${q.skor||1} poin</span></div>
           <div style="display:flex;gap:6px;margin-top:4px">
             <span class="badge badge-info">${mp?mp.nama:'?'}</span>
             <span class="badge" style="background:rgba(0,0,0,0.06);color:${typeColors[q.tipe]||'var(--accent)'}">${typeLabels[q.tipe]||q.tipe}</span>
           </div>
         </div>
-        <button class="btn btn-sm btn-danger" onclick="hapusSoal('${q.id}')">🗑 Hapus</button>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-sm btn-primary" onclick="editSoal('${q.id}')">✏️ Edit</button>
+          <button class="btn btn-sm btn-danger" onclick="hapusSoal('${q.id}')">🗑 Hapus</button>
+        </div>
       </div>
       <div style="font-size:14px;margin-bottom:8px">${q.text.substring(0,200)}${q.text.length>200?'...':''}</div>
       ${q.image_url?`<img src="${q.image_url}" style="max-height:80px;border-radius:6px;margin-bottom:8px">`:''}
@@ -1123,6 +1157,90 @@ async function hapusSoal(id) {
   if(!confirm('Hapus soal ini?')) return;
   await sbDelete('soal',{id}); await loadSoal();
   toast('🗑️ Soal dihapus','','warn');
+}
+
+async function editSoal(id) {
+  showLoading(true);
+  try {
+    const data = await sbSelect('soal',`?id=eq.${id}`);
+    if(!data.length) return;
+    const q = data[0];
+
+    await openModal('modal-tambah-soal');
+
+    // Set mode edit
+    document.getElementById('edit-soal-id').value = id;
+    document.getElementById('modal-soal-title').textContent = '✏️ Edit Soal';
+    document.getElementById('btn-simpan-soal').textContent = '💾 Update Soal';
+
+    // Isi field
+    document.getElementById('soal-mapel').value = q.mapel_id;
+    document.getElementById('soal-tipe').value = q.tipe;
+    document.getElementById('soal-text').value = q.text;
+    document.getElementById('soal-poin').value = q.skor || 1;
+
+    updateSoalForm();
+
+    // Gambar
+    if(q.image_url) {
+      const img = document.getElementById('gambar-preview');
+      img.src = q.image_url; img.style.display = 'block';
+    }
+
+    // Options PG/MC
+    if((q.tipe==='pg'||q.tipe==='mc') && q.options) {
+      document.getElementById('option-list').innerHTML = '';
+      optionCount = 0;
+      q.options.forEach((opt, i) => {
+        optionCount++;
+        const letter = String.fromCharCode(64+optionCount);
+        const div = document.createElement('div');
+        div.className='jawaban-tambah'; div.id='opt-'+optionCount;
+        div.innerHTML=`<div class="opt-label" style="background:var(--primary);color:#fff;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;flex-shrink:0">${letter}</div>
+          <input type="text" value="${opt.text}" style="flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-family:Nunito,sans-serif;font-size:14px;outline:none">
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--accent2);cursor:pointer;white-space:nowrap">
+            <input type="radio" name="correct-opt" value="${optionCount}" ${opt.correct?'checked':''} style="accent-color:var(--accent2)"> Benar
+          </label>
+          <button onclick="document.getElementById('opt-${optionCount}').remove()" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:18px;padding:0 4px">×</button>`;
+        document.getElementById('option-list').appendChild(div);
+      });
+    }
+
+    // Essay
+    if(q.tipe==='essay') {
+      document.getElementById('essay-kunci').value = q.kunci||'';
+      document.getElementById('essay-skor').value = q.skor||10;
+    }
+
+    // Matching
+    if(q.tipe==='matching' && q.pairs) {
+      document.getElementById('matching-pairs').innerHTML='';
+      q.pairs.forEach(p => {
+        const div=document.createElement('div'); div.style.cssText='display:flex;gap:8px;margin-bottom:8px;align-items:center';
+        div.innerHTML=`<input type="text" value="${p.left}" class="match-left" style="flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-family:Nunito,sans-serif;font-size:14px;outline:none">
+          <span style="color:var(--text-dim)">→</span>
+          <input type="text" value="${p.right}" class="match-right" style="flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-family:Nunito,sans-serif;font-size:14px;outline:none">
+          <button onclick="this.parentElement.remove()" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:18px">×</button>`;
+        document.getElementById('matching-pairs').appendChild(div);
+      });
+    }
+
+    // B/S
+    if(q.tipe==='bs') document.getElementById('bs-answer').value = q.answer||'benar';
+
+  } catch(e) { toast('❌ Gagal memuat soal untuk diedit','','danger'); }
+  finally { showLoading(false); }
+}
+
+function resetSoalForm() {
+  document.getElementById('edit-soal-id').value='';
+  document.getElementById('modal-soal-title').textContent='✏️ Buat Soal';
+  document.getElementById('btn-simpan-soal').textContent='💾 Simpan Soal';
+  document.getElementById('soal-text').value='';
+  document.getElementById('soal-poin').value='1';
+  document.getElementById('gambar-preview').style.display='none';
+  document.getElementById('gambar-preview').src='';
+  initOptionList();
 }
 
 // SOAL FORM
@@ -1169,12 +1287,15 @@ async function simpanSoal() {
   const text=document.getElementById('soal-text').value.trim();
   const mapel_id=document.getElementById('soal-mapel').value;
   const tipe=document.getElementById('soal-tipe').value;
+  const skor=parseInt(document.getElementById('soal-poin').value)||1;
+  const editId=document.getElementById('edit-soal-id').value;
+
   if(!text) { toast('⚠️ Pertanyaan tidak boleh kosong','','warn'); return; }
   if(!mapel_id) { toast('⚠️ Pilih mata pelajaran','','warn'); return; }
 
-  const soal = { id:'Q'+Date.now(), text, mapel_id, tipe };
+  const soal = { text, mapel_id, tipe, skor };
   const imgPreview=document.getElementById('gambar-preview');
-  if(imgPreview.style.display!=='none') soal.image_url=imgPreview.src;
+  if(imgPreview.style.display!=='none' && imgPreview.src) soal.image_url=imgPreview.src;
 
   if(tipe==='pg'||tipe==='mc') {
     const opts=document.getElementById('option-list').querySelectorAll('.jawaban-tambah');
@@ -1182,7 +1303,7 @@ async function simpanSoal() {
     soal.options=[...opts].map((o,i)=>({text:o.querySelector('input[type="text"]').value,correct:String(i+1)===correctVal})).filter(o=>o.text);
     if(!soal.options.length) { toast('⚠️ Tambahkan pilihan jawaban','','warn'); return; }
   }
-  if(tipe==='essay') { soal.kunci=document.getElementById('essay-kunci').value; soal.skor=parseInt(document.getElementById('essay-skor').value)||10; }
+  if(tipe==='essay') { soal.kunci=document.getElementById('essay-kunci').value; soal.skor=parseInt(document.getElementById('essay-skor').value)||skor; }
   if(tipe==='matching') {
     const pairs=document.getElementById('matching-pairs').querySelectorAll('div');
     soal.pairs=[...pairs].map(p=>({left:p.querySelector('.match-left')?.value,right:p.querySelector('.match-right')?.value})).filter(p=>p.left&&p.right);
@@ -1192,10 +1313,20 @@ async function simpanSoal() {
 
   showLoading(true);
   try {
-    await sbInsert('soal',soal); await loadSoal(); closeModal('modal-tambah-soal');
-    document.getElementById('soal-text').value=''; document.getElementById('gambar-preview').style.display='none';
-    initOptionList(); toast('✅ Soal disimpan!','','success');
-  } catch(e) { toast('❌ Gagal menyimpan soal','','danger'); }
+    if(editId) {
+      // MODE EDIT
+      await sbUpdate('soal', soal, {id: editId});
+      toast('✅ Soal berhasil diupdate!','','success');
+    } else {
+      // MODE BARU
+      soal.id = 'Q'+Date.now();
+      await sbInsert('soal', soal);
+      toast('✅ Soal berhasil disimpan!','','success');
+    }
+    await loadSoal();
+    closeModal('modal-tambah-soal');
+    resetSoalForm();
+  } catch(e) { toast('❌ Gagal menyimpan soal','','danger'); console.error(e); }
   finally { showLoading(false); }
 }
 
@@ -1821,27 +1952,43 @@ async function submitExam(autoTime=false,autoViolation=false) {
 
 function showResultScreen(hasil) {
   const kkm=appSettings.kkm||70; const lulus=hasil.nilai>=kkm;
+
+  // Status Banner
+  document.getElementById('result-status-banner').style.cssText=`text-align:center;margin-bottom:24px;padding:32px 20px;border-radius:16px;background:${lulus?'linear-gradient(135deg,rgba(6,214,160,0.12),rgba(6,214,160,0.06))':'linear-gradient(135deg,rgba(239,68,68,0.12),rgba(239,68,68,0.06))'};border:2px solid ${lulus?'rgba(6,214,160,0.4)':'rgba(239,68,68,0.4)'}`;
+  document.getElementById('result-status-banner').innerHTML=`
+    <div style="font-size:64px;margin-bottom:12px">${lulus?'🏆':'💪'}</div>
+    <div style="font-family:'Rajdhani',sans-serif;font-size:36px;font-weight:700;color:${lulus?'#059669':'var(--danger)'};">${hasil.status.toUpperCase()}</div>
+    <div style="font-size:15px;color:var(--text-dim);margin-top:8px">${lulus?'Selamat! Anda berhasil lulus ujian ini.':'Nilai Anda belum mencapai KKM ('+kkm+'). Semangat belajar!'}</div>
+  `;
+
+  // Stats
   document.getElementById('result-stats').innerHTML=`
-    <div class="stat-card"><div class="stat-icon ${lulus?'green':'red'}">${lulus?'🏆':'📚'}</div><div class="stat-info"><div class="val" style="color:${lulus?'#059669':'var(--danger)'}">${hasil.nilai}</div><div class="lbl">NILAI AKHIR</div></div></div>
-    <div class="stat-card"><div class="stat-icon green">✅</div><div class="stat-info"><div class="val">${hasil.benar}</div><div class="lbl">Jawaban Benar</div></div></div>
-    <div class="stat-card"><div class="stat-icon red">❌</div><div class="stat-info"><div class="val">${hasil.total-hasil.benar}</div><div class="lbl">Jawaban Salah</div></div></div>
-    <div class="stat-card"><div class="stat-icon orange">⚠️</div><div class="stat-info"><div class="val">${hasil.violations}</div><div class="lbl">Pelanggaran</div></div></div>`;
-  const statusHtml=`<div style="text-align:center;margin-bottom:20px;padding:20px;background:${lulus?'rgba(6,214,160,0.08)':'rgba(239,68,68,0.08)'};border-radius:12px;border:1px solid ${lulus?'rgba(6,214,160,0.3)':'rgba(239,68,68,0.3)'}">
-    <div style="font-size:48px">${lulus?'🎉':'💪'}</div>
-    <div style="font-family:Rajdhani,sans-serif;font-size:28px;font-weight:700;color:${lulus?'#059669':'var(--danger)'}">${hasil.status.toUpperCase()}</div>
-    <div style="font-size:14px;color:var(--text-dim);margin-top:4px">${lulus?'Selamat! Anda lulus ujian ini.':'Nilai Anda di bawah KKM ('+kkm+'). Perlu remedial.'}</div>
-  </div>`;
-  const detail=(hasil.detail||[]).map(d=>{
-    let userAnsText='-';
-    if(d.tipe==='pg'||d.tipe==='mc'){const ua=Array.isArray(d.userAnswer)?d.userAnswer:[d.userAnswer];userAnsText=ua.filter(i=>i!==undefined).map(i=>String.fromCharCode(65+i)).join(', ')||'(tidak dijawab)';}
-    else if(d.tipe==='essay') userAnsText=d.userAnswer||'(tidak dijawab)';
-    else if(d.tipe==='bs') userAnsText=d.userAnswer?d.userAnswer.toUpperCase():'-';
-    else if(d.tipe==='matching') userAnsText=d.userAnswer?Object.values(d.userAnswer).join(', '):'-';
-    const cls=d.correct===null?'':d.correct?'correct':'wrong';
-    const icon=d.correct===null?'📝':d.correct?'✅':'❌';
-    return `<div class="review-item ${cls}"><div class="review-q">${icon} Soal ${d.nomor}: ${d.text.substring(0,100)}</div><div class="review-ans">Jawaban: <span>${userAnsText}</span></div>${d.tipe!=='essay'?`<div class="review-ans" style="color:#059669">Kunci: <span>${getCorrectAnsText(d)}</span></div>`:''}</div>`;
-  }).join('');
-  document.getElementById('result-detail').innerHTML=statusHtml+detail;
+    <div style="background:#fff;border:1px solid var(--border);border-radius:14px;padding:20px;text-align:center">
+      <div style="font-size:13px;color:var(--text-dim);font-weight:700;letter-spacing:1px;margin-bottom:8px">NILAI AKHIR</div>
+      <div style="font-family:'Rajdhani',sans-serif;font-size:52px;font-weight:700;color:${lulus?'#059669':'var(--danger)'};line-height:1">${hasil.nilai}</div>
+      <div style="font-size:12px;color:var(--text-dim);margin-top:4px">KKM: ${kkm}</div>
+    </div>
+    <div style="background:#fff;border:1px solid var(--border);border-radius:14px;padding:20px;text-align:center">
+      <div style="font-size:13px;color:var(--text-dim);font-weight:700;letter-spacing:1px;margin-bottom:8px">SOAL DIKERJAKAN</div>
+      <div style="font-family:'Rajdhani',sans-serif;font-size:52px;font-weight:700;color:var(--primary);line-height:1">${hasil.total}</div>
+      <div style="font-size:12px;color:var(--text-dim);margin-top:4px">dari ${hasil.total} soal</div>
+    </div>
+    <div style="background:#fff;border:1px solid rgba(6,214,160,0.3);border-radius:14px;padding:20px;text-align:center">
+      <div style="font-size:13px;color:var(--text-dim);font-weight:700;letter-spacing:1px;margin-bottom:8px">JAWABAN BENAR</div>
+      <div style="font-family:'Rajdhani',sans-serif;font-size:52px;font-weight:700;color:#059669;line-height:1">${hasil.benar}</div>
+      <div style="font-size:12px;color:#059669;margin-top:4px">✅ Benar</div>
+    </div>
+    <div style="background:#fff;border:1px solid rgba(239,68,68,0.3);border-radius:14px;padding:20px;text-align:center">
+      <div style="font-size:13px;color:var(--text-dim);font-weight:700;letter-spacing:1px;margin-bottom:8px">JAWABAN SALAH</div>
+      <div style="font-family:'Rajdhani',sans-serif;font-size:52px;font-weight:700;color:var(--danger);line-height:1">${hasil.total-hasil.benar}</div>
+      <div style="font-size:12px;color:var(--danger);margin-top:4px">❌ Salah</div>
+    </div>
+  `;
+
+  // Header
+  document.getElementById('result-header-icon').textContent = lulus ? '🏆' : '📚';
+  document.getElementById('result-header-sub').textContent = `${hasil.nama} — ${hasil.kelas} — ${hasil.mapel_nama}`;
+
   showScreen('result-screen');
 }
 
