@@ -406,7 +406,7 @@ tr:hover td { background:#f8fafc; }
 <!-- ===== ADMIN ===== -->
 <div id="admin-screen" class="screen">
   <aside class="sidebar">
-    <div class="sidebar-logo"><h2>⚡ More Improvement</h2><p>Dashboard Administrator</p></div>
+    <div class="sidebar-logo"><h2>⚡ EXAM SYSTEM</h2><p>Dashboard Administrator</p></div>
     <nav class="sidebar-nav">
       <div class="nav-label">UTAMA</div>
       <button class="nav-item active" onclick="showPanel('dashboard',this)"><span class="icon">📊</span> Dashboard</button>
@@ -753,6 +753,8 @@ tr:hover td { background:#f8fafc; }
     </div>
   </div>
 </div>
+
+<div class="modal-overlay" id="modal-tambah-siswa">
   <div class="modal"><div class="modal-header"><h2>👨‍🎓 Tambah Siswa</h2><button class="modal-close" onclick="closeModal('modal-tambah-siswa')">✕</button></div>
   <div class="modal-body">
     <div class="form-row">
@@ -1206,10 +1208,16 @@ async function loginAdmin() {
 
 function logoutAdmin() {
   if(confirm('Yakin ingin keluar?')) {
+    // Bersihkan session
     sessionStorage.removeItem('adminSession');
     sessionStorage.removeItem('activePanel');
     sessionStorage.removeItem('currentScreen');
+    // Tutup semua modal yang mungkin terbuka
+    document.querySelectorAll('.modal-overlay.show').forEach(m => m.classList.remove('show'));
+    // Kembali ke login
     showScreen('login-screen');
+    // Reset tab ke siswa
+    switchTab('siswa');
   }
 }
 
